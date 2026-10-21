@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def bs_monte_carlo(
     S0: float,
     K: float,
