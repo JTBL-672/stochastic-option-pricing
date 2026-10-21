@@ -1,16 +1,26 @@
-Stochastic European Option Pricing LibraryA high-performance, modular Python engine for pricing European options using multiple numerical methods: Closed-Form Analytical (Black-Scholes), Implicit Finite Difference Method (PDE), and Monte Carlo Simulation with Variance Reduction.This project demonstrates first-principles mathematical derivations, vectorized numerical computations, $O(N)$ tridiagonal matrix solvers, and variance reduction techniques applied to quantitative finance.Key Features & ArchitectureAnalytical Engine (src/analytical.py): Closed-form Black-Scholes pricing for European Call and Put options.Implicit PDE Solver (src/pde_solver.py): Solves the Black-Scholes PDE backward in time using the Implicit Finite Difference Scheme with exact boundary conditions and $O(N)$ Thomas algorithm via scipy.linalg.solve_banded.Monte Carlo Engine (src/monte_carlo.py): Simulates Geometric Brownian Motion (GBM) trajectories using exact log-normal stepping, Antithetic Variates for variance reduction, and standard error estimation.Benchmarking Suite (main.py): Performance comparison of accuracy, runtime, and convergence metrics across all pricing engines.Project Structurestochastic-option-pricing/
-│
+# Stochastic Option Pricing Library
+
+A modular, high-performance Python library built for European option pricing, comparing closed-form analytical models against numerical methods (Implicit Finite Difference Method) and stochastic simulations (Monte Carlo with Variance Reduction).
+
+---
+
+## Key Features
+
+* **Analytical Baseline:** Closed-form Black-Scholes solver using `scipy.stats.norm` for precise reference pricing.
+* **Implicit Finite Difference Method (FDM):** Solves the Black-Scholes partial differential equation (PDE) backward in time ($T \to 0$). Utilizes `scipy.linalg.solve_banded` ($O(N)$ Thomas algorithm) for efficient tridiagonal matrix solving with Dirichlet boundary conditions at $S = 0$ and $S = S_{\max}$.
+* **Monte Carlo Simulation:** Simulates exact terminal asset prices under Geometric Brownian Motion (GBM). Features **Antithetic Variates** variance reduction and automatic standard error calculation.
+* **Comprehensive Benchmarking:** Centralized script (`main.py`) measuring accuracy, convergence, and execution runtimes across all pricing engines.
+
+---
+
+## Repository Structure
+
+```text
+stochastic-option-pricing/
 ├── src/
-│   ├── __init__.py
-│   ├── analytical.py    # Black-Scholes closed-form model
-│   ├── pde_solver.py    # Implicit FDM PDE engine
-│   └── monte_carlo.py   # Stochastic simulation engine
-│
-├── main.py              # Central execution & benchmarking script
-├── requirements.txt     # Dependency specifications
-└── README.md            # Repository documentation
-Mathematical Formulations1. Closed-Form Black-Scholes EngineThe Black-Scholes price for a European Call ($C$) and Put ($P$) option is defined by:$$C(S_0, t) = S_0 N(d_1) - K e^{-r(T-t)} N(d_2)$$$$P(S_0, t) = K e^{-r(T-t)} N(-d_2) - S_0 N(-d_1)$$where:$$d_1 = \frac{\ln(S_0 / K) + \left(r + \frac{\sigma^2}{2}\right)(T-t)}{\sigma \sqrt{T-t}}, \quad d_2 = d_1 - \sigma \sqrt{T-t}$$And $N(x)$ is the cumulative distribution function (CDF) of the standard normal distribution:$$N(x) = \frac{1}{\sqrt{2\pi}} \int_{-\infty}^{x} e^{-\frac{u^2}{2}} \, du$$2. Implicit Finite Difference Method (PDE Solver)Under the Black-Scholes framework, the option value $V(S, t)$ satisfies the parabolic partial differential equation:$$\frac{\partial V}{\partial t} + \frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} + r S \frac{\partial V}{\partial S} - r V = 0$$Transforming time backward to maturity $\tau = T - t$, discretization on a spatial grid $S_i = i \cdot \Delta S$ and temporal grid $\tau_j = j \cdot \Delta \tau$ using backward time and central space differences yields the implicit scheme:$$a_i V_{i-1}^{j+1} + b_i V_i^{j+1} + c_i V_{i+1}^{j+1} = V_i^j$$where the tridiagonal coefficients are:$$a_i = \frac{1}{2} r i \Delta \tau - \frac{1}{2} \sigma^2 i^2 \Delta \tau$$$$b_i = 1 + \sigma^2 i^2 \Delta \tau + r \Delta \tau$$$$c_i = -\frac{1}{2} r i \Delta \tau - \frac{1}{2} \sigma^2 i^2 \Delta \tau$$Boundary ConditionsAt $S = 0$ ($i = 0$): $V(0, \tau) = K e^{-r\tau}$ for Puts, $0$ for Calls.At $S = S_{\max}$ ($i = M$): $V(S_{\max}, \tau) = S_{\max} - K e^{-r\tau}$ for Calls, $0$ for Puts.The system $M \mathbf{V}^{j+1} = \mathbf{V}^j$ is solved efficiently at each time step in $O(N)$ time using scipy.linalg.solve_banded.3. Stochastic Monte Carlo EngineUnder the risk-neutral measure $\mathbb{Q}$, asset prices follow Geometric Brownian Motion (GBM):$$dS_t = r S_t dt + \sigma S_t dW_t$$Using the exact analytical solution to avoiding discretization error:$$S_T = S_0 \exp\left( \left(r - \frac{\sigma^2}{2}\right)T + \sigma \sqrt{T} Z \right), \quad Z \sim \mathcal{N}(0, 1)$$Antithetic VariatesTo reduce variance without increasing time steps, for each standard normal sample $Z_k$, we sample both $Z_k$ and $-Z_k$:$$S_T^{(1)} = S_0 \exp\left( \left(r - \frac{\sigma^2}{2}\right)T + \sigma \sqrt{T} Z_k \right)$$$$S_T^{(2)} = S_0 \exp\left( \left(r - \frac{\sigma^2}{2}\right)T - \sigma \sqrt{T} Z_k \right)$$The option price estimate $\hat{C}$ and standard error (SE) are computed as:$$\hat{C} = e^{-rT} \frac{1}{N} \sum_{k=1}^{N/2} \frac{h\left(S_{T,k}^{(1)}\right) + h\left(S_{T,k}^{(2)}\right)}{2}$$$$\text{SE}(\hat{C}) = \frac{\hat{\sigma}_Y}{\sqrt{N/2}}$$Benchmark ResultsParameter BaselineSpot Price ($S_0$): £100.00Strike Price ($K$): £100.00 (At-the-Money)Time to Maturity ($T$): 1.0 YearRisk-Free Rate ($r$): 5.0% ($0.05$)Volatility ($\sigma$): 20.0% ($0.20$)Pricing EngineOption TypeOption Price (£)Percentage Error vs. AnalyticalStandard Error / NotesAnalytical (Black-Scholes)Call£10.45060.000%Exact BenchmarkAnalytical (Black-Scholes)Put£5.57350.000%Exact BenchmarkImplicit FDM (PDE Solver)Call£10.4534~0.027%Grid: $N_S = 500, N_T = 500$Monte Carlo (Antithetic)Call£10.4529~0.022%$100,000$ paths (~29.4% SE reduction)QuickstartPrerequisitesPython 3.9+Dependencies: numpy, scipyInstallationgit clone https://github.com/your-username/stochastic-option-pricing.git
-cd stochastic-option-pricing
-pip install -r requirements.txt
-Running BenchmarksExecute the main driver script to reproduce the numerical benchmark evaluations:python main.py
-Next Steps[ ] Implementation of analytical and numerical option Greeks ($\Delta, \Gamma, \nu, \Theta, \rho$).[ ] Extension to American Option Pricing using Longstaff-Schwartz Monte Carlo (LSM) and explicit FDM with free boundaries.[ ] Jump-Diffusion Models (Merton Jump-Diffusion Engine).
+│   ├── analytical.py      # Black-Scholes closed-form model
+│   ├── pde_solver.py      # Implicit FDM solver (scipy.linalg.solve_banded)
+│   └── monte_carlo.py     # Stochastic simulation with Antithetic Variates
+├── main.py                # Central execution and benchmarking suite
+├── requirements.txt       # Project dependencies
+└── README.md              # Project documentation
