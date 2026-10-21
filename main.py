@@ -1,7 +1,7 @@
 import time
-from analytical import black_scholes_analytical
-from monte_carlo import bs_monte_carlo
-from pde_solver import bs_pde_implicit_fdm
+from src.analytical import black_scholes_analytical
+from src.monte_carlo import bs_monte_carlo
+from src.pde_solver import bs_pde_implicit_fdm
 
 
 def run_benchmark():
